@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 import pickle
@@ -44,8 +45,8 @@ paginaMedicao = "medicao!K2:K"
 
 rateioFinanceiro = "1ohl2iwOGbf1Y_cxrQsAhFDGeOPKU52sT6FqJeC35Sb4"
 paginafinanceiro = "Rateio Chammas!B:F"
-inventarioAtivos ="1P2-6GZli4hHx8KoViE13xj2Li81dzDr4dS9ObhD_tMY"
-paginaAtivos="Notebook!A:A"
+inventarioAtivos = "1P2-6GZli4hHx8KoViE13xj2Li81dzDr4dS9ObhD_tMY"
+paginaAtivos = "Notebook!A:A"
 service = authenticate_google()
 sheet = service.spreadsheets()
 
@@ -79,30 +80,44 @@ def escreveDados(linhas):
 
 
 def realiza_calculo():
-   
-   #print(linhasMedicao)
-   verificaDado()
-                
+
+    # print(linhasMedicao)
+    verificaDado()
+
 
 def verificaDado():
-    retornoMedicao = (sheet.values().get(spreadsheetId=medicao, range="Medicao!A2:A").execute())
+    retornoMedicao = (
+        sheet.values().get(spreadsheetId=medicao, range="Medicao!A2:A").execute()
+    )
     linhasMedicao = retornoMedicao.get("values", [])
-    retornoNovoRateio = (sheet.values().get(spreadsheetId=novoRateio, range="Página1!D2:D").execute())
+    retornoNovoRateio = (
+        sheet.values().get(spreadsheetId=novoRateio, range="Página1!D2:D").execute()
+    )
     linhasNovoRateio = retornoNovoRateio.get("values", [])
-    retornoInventarioAtivos = (sheet.values().get(spreadsheetId=inventarioAtivos, range=paginaAtivos).execute())
+    retornoInventarioAtivos = (
+        sheet.values().get(spreadsheetId=inventarioAtivos, range=paginaAtivos).execute()
+    )
     linhasMatriculasAtivos = retornoInventarioAtivos.get("values", [])
-   
-    custoMedicao = (sheet.values().get(spreadsheetId=medicao, range="Medicao!K2:K").execute())
+
+    custoMedicao = (
+        sheet.values().get(spreadsheetId=medicao, range="Medicao!K2:K").execute()
+    )
     custo = custoMedicao.get("values", [])
-    porcentagem = (sheet.values().get(spreadsheetId=novoRateio, range="Página1!E2:E").execute())
+    porcentagem = (
+        sheet.values().get(spreadsheetId=novoRateio, range="Página1!E2:E").execute()
+    )
     custoPorcentagem = porcentagem.get("values", [])
-    
+    perifericoMedicao = (
+        sheet.values().get(spreadsheetId=medicao, range="Medicao!E2:E").execute()
+    )
+    periferico = perifericoMedicao.get("values", [])
+
     resultado = []
 
     # Converte listas de matrículas em conjuntos para busca rápida
     matriculasAtivos = {item[0] for item in linhasMatriculasAtivos if item}
     medicaoLista = {item[0] for item in linhasMedicao if item}
-    
+
     # Substitui vírgula por ponto em custo e custoPorcentagem
     for i in range(len(custo)):
         if custo[i]:
@@ -111,26 +126,13 @@ def verificaDado():
     for i in range(len(custoPorcentagem)):
         if custoPorcentagem[i]:
             custoPorcentagem[i][0] = custoPorcentagem[i][0].replace(",", ".")
-    
-def verificaDado():
-    retornoMedicao = (sheet.values().get(spreadsheetId=medicao, range="Medicao!A2:A").execute())
-    linhasMedicao = retornoMedicao.get("values", [])
-    retornoNovoRateio = (sheet.values().get(spreadsheetId=novoRateio, range="Página1!D2:D").execute())
-    linhasNovoRateio = retornoNovoRateio.get("values", [])
-    retornoInventarioAtivos = (sheet.values().get(spreadsheetId=inventarioAtivos, range=paginaAtivos).execute())
-    linhasMatriculasAtivos = retornoInventarioAtivos.get("values", [])
-   
-    custoMedicao = (sheet.values().get(spreadsheetId=medicao, range="Medicao!K2:K").execute())
-    custo = custoMedicao.get("values", [])
-    porcentagem = (sheet.values().get(spreadsheetId=novoRateio, range="Página1!E2:E").execute())
-    custoPorcentagem = porcentagem.get("values", [])
-    
+
     resultado = []
 
     # Converte listas de matrículas em conjuntos para busca rápida
     matriculasAtivos = {item[0] for item in linhasMatriculasAtivos if item}
-    medicaoLista = {item[0] for item in linhasMedicao if item}
-    
+    medicaoLista = list({item[0] for item in linhasMedicao if item})
+
     # Substitui vírgula por ponto em custo e custoPorcentagem
     for i in range(len(custo)):
         if custo[i]:
@@ -139,37 +141,83 @@ def verificaDado():
     for i in range(len(custoPorcentagem)):
         if custoPorcentagem[i]:
             custoPorcentagem[i][0] = custoPorcentagem[i][0].replace(",", ".")
-    
+
     j = 0
+    dispositivo = []
     for i in range(len(linhasNovoRateio)):
         if len(linhasNovoRateio[i]) > 0:
             matricula = linhasNovoRateio[i][0]
         else:
             matricula = ""
-
+        notebooks = list(
+            {"HP", "Dell", "Lenovo", "Asus", "Acer", "MacBook", "Positivo", "Samsung"}
+        )
         if matricula in matriculasAtivos and matricula in medicaoLista:
+
             try:
-                if j < len(custo) and i < len(custoPorcentagem):
-                    valor_custo = custo[j][0]
+                # Encontrar a linha correspondente da matricula vinculada ao valor da medicao
+                linha_medicao = next(
+                    (
+                        index
+                        for index, item in enumerate(linhasMedicao)
+                        if item[0] == matricula
+                    ),
+                    None,
+                )
+
+                if linha_medicao is not None and linha_medicao < len(custo):
+                    valor_custo = custo[linha_medicao][0]
                     valor_porcentagem = custoPorcentagem[i][0]
 
                     multiplicador = float(valor_custo) * float(valor_porcentagem)
                     resultado.append([multiplicador])
-                    if i + 1 < len(linhasNovoRateio) and linhasNovoRateio[i + 1] != linhasNovoRateio[i]:
-                        j += 1  # Incrementa 'j' somente se a próxima linha for diferente
-                        print(j)
+
+                    if (
+                        i + 1 < len(linhasNovoRateio)
+                        and linhasNovoRateio[i + 1] != linhasNovoRateio[i]
+                    ):
+
+                        j += 1
+
                 else:
                     resultado.append(["Erro: valor ausente"])
             except (ValueError, IndexError):
                 resultado.append(["Erro ao calcular"])
         else:
             resultado.append(["Usuário sem periférico"])
+            # verifica o tipo de dispositivo e adiciona a lista de dispositivos
+        if any(marca.lower() in periferico[j][0].lower() for marca in notebooks):
+            dispositivo.append(["Notebook"])
+        else:
+            dispositivo.append(["Tablet"])
 
     paginaNova = f"Página1!G2:G{len(resultado) + 1}"
     body = {"values": resultado}
-    escrita = sheet.values().update(spreadsheetId=novoRateio, range=paginaNova, valueInputOption="RAW", body=body).execute()
-   
+    escrita = (
+        sheet.values()
+        .update(
+            spreadsheetId=novoRateio,
+            range=paginaNova,
+            valueInputOption="RAW",
+            body=body,
+        )
+        .execute()
+    )
+    paginaNova = f"Página1!F2:F{len(dispositivo) + 1}"
+    body = {"values": dispositivo}
+    escrita = (
+        sheet.values()
+        .update(
+            spreadsheetId=novoRateio,
+            range=paginaNova,
+            valueInputOption="RAW",
+            body=body,
+        )
+        .execute()
+    )
+
     print("Dados atualizados")
 
-# leituraDeDados()
+
+#leituraDeDados()
 realiza_calculo()
